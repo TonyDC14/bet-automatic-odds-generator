@@ -1,5 +1,8 @@
 import pandas as pd
 import logging
+import xml.etree.ElementTree as ET
+import argparse
+import os
 
 # Set up logging with colors
 logging.basicConfig(level=logging.INFO, format='%(message)s')
@@ -48,7 +51,21 @@ def analyze_match(row):
 
 # Function to calculate total profit/loss for a single file
 def calculate_profit_loss(file_name):
-    df = pd.read_csv(file_name)
+    required_columns = ['Date', 'HomeTeam', 'AwayTeam', 'B365H', 'B365D', 'B365A', 'FTR']
+    try:
+        df = pd.read_csv(file_name, usecols=lambda col: col in required_columns, on_bad_lines='skip')
+        
+        # Verifica si faltan columnas
+        missing_cols = set(required_columns) - set(df.columns)
+        if missing_cols:
+            logger.warning(f"Missing columns in {file_name}: {', '.join(missing_cols)}")
+            for col in missing_cols:
+                df[col] = None  # Añade la columna faltante con valores nulos
+        
+    except Exception as e:
+        logger.error(f"Failed to read file {file_name}: {e}")
+        return 0, 0, 0
+    
     total_matches = len(df)  # Total number of matches in the file
     df[['profit', 'loss', 'bet_made']] = df.apply(lambda row: analyze_match(row), axis=1, result_type='expand')
     total_profit = df['profit'].sum()
@@ -57,24 +74,22 @@ def calculate_profit_loss(file_name):
     matches_analyzed = df['bet_made'].sum()  # Count only the matches where a bet was made
     return balance, total_matches, matches_analyzed
 
-# List of files to process
-file_names = [
-    'england-premier-league-2019-to-2020.csv',
-    'england-premier-league-2018-to-2019.csv',
-    'belgium-jupiler-league-2019-to-2020.csv',
-    'germany-bundesliga-1-2019-to-2020.csv',
-    'portugal-liga-i-2019-to-2020.csv',
-    'italy-serie-a-2019-to-2020.csv',
-    'france-le-championnat-2019-to-2020.csv',
-    'netherlands-eredivisie-2019-to-2020.csv',
-    'spain-la-liga-primera-division-2019-to-2020.csv',
-]
+# Function to parse the XML file and extract CSV file paths
+def parse_xml(file_name):
+    tree = ET.parse(file_name)
+    root = tree.getroot()
+    # Convert relative paths to absolute paths based on the script's directory
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    file_paths = [os.path.join(script_dir, elem.text) for elem in root.findall('.//file')]
+    return file_paths
 
 # Main function to process all files and calculate the total balance
-def main():
+def main(xml_file):
+    file_names = parse_xml(xml_file)
     total_balance = 0
     total_matches_analyzed = 0
     total_matches_in_files = 0
+    
     for file_name in file_names:
         logger.info(f"\033[96m{'-'*20}\nAnalyzing file: {file_name}\033[0m")
         file_balance, total_matches, matches_analyzed = calculate_profit_loss(file_name)
@@ -90,5 +105,9 @@ def main():
     logger.info(f"\033[93mTotal matches analyzed across all files: {total_matches_analyzed}\033[0m")
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description='Process betting simulation based on XML file.')
+    parser.add_argument('xml_file', type=str, help='The path to the XML file containing CSV file paths.')
+    args = parser.parse_args()
+    
+    main(args.xml_file)
 
