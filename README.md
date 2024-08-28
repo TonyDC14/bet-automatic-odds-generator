@@ -1,6 +1,6 @@
 # Underdog Simulator
 
-The `underdog_simulator.py` script simulates betting on underdog football teams' victories or draws across major European leagues during the 2019-2020 season. It analyzes the profitability of betting on matches where the odds of an underdog win or draw exceed 8.
+The `underdog_simulator.py` script simulates betting on underdog football teams' victories or draws across major European leagues during the 2005-2020 season. It analyzes the profitability of betting on matches where the odds of an underdog win or draw exceed 8.
 
 ## Prerequisites
 
